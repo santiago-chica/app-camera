@@ -1,2 +1,2 @@
 # app-camera
-Proyecto
+Proyecto de 50
