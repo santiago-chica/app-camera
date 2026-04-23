@@ -1,0 +1,39 @@
+<ion-header [translucent]="true">
+  <ion-toolbar>
+    <ion-title> Cámara </ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true">
+  @for (photo of photos; track $index) {
+  <ion-card>
+    <img [alt]="photo.caption || 'Foto'" [src]="photo.image" />
+    <ion-card-header>
+      <ion-card-title>{{photo.title}}</ion-card-title>
+      <ion-card-subtitle>{{photo.date}}</ion-card-subtitle>
+    </ion-card-header>
+
+    <ion-card-content>
+      {{photo.caption || 'Sin descripción'}}
+
+      <ion-button (click)="removePhoto($index)">
+        <ion-icon name="trash"></ion-icon>
+      </ion-button>
+    </ion-card-content>
+  </ion-card>
+  } @empty {
+  <ion-card>
+    <ion-card-header>
+      <ion-card-title>No hay fotos para mostrar</ion-card-title>
+    </ion-card-header>
+
+    <ion-card-content> Agrega una foto para mostrarla aquí. </ion-card-content>
+  </ion-card>
+  }
+
+  <ion-fab vertical="bottom" horizontal="end" slot="fixed">
+    <ion-fab-button (click)="takePicture()">
+      <ion-icon name="add"></ion-icon>
+    </ion-fab-button>
+  </ion-fab>
+</ion-content>
