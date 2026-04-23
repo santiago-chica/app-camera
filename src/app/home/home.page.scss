@@ -60,6 +60,24 @@ ion-button {
   --padding-end: 10px;
 }
 
+// Fav button
+ion-button.favorite {
+  --background: #ff4081;
+  --background-hover: #f50057;
+  --color: #fff;
+  --border-radius: 10px;
+  --padding-start: 10px;
+  --padding-end: 10px;
+}
+
+// Button container
+ion-card-content .button-container {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-direction: row;
+}
+
 /* Icon inside button */
 ion-button ion-icon {
   font-size: 18px;

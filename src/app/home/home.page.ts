@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import {
   IonHeader,
   IonToolbar,
@@ -6,7 +6,6 @@ import {
   IonContent,
 } from '@ionic/angular/standalone';
 import { Camera, EncodingType } from '@capacitor/camera';
-import PhotoType from '../types/PhotoType';
 
 import {
   IonCard,
@@ -22,9 +21,13 @@ import { Storage } from '@ionic/storage-angular';
 import { IonFab, IonFabButton, IonIcon } from '@ionic/angular/standalone';
 
 import { addIcons } from 'ionicons';
-import { add, trash } from 'ionicons/icons';
+import { add, trash, heart, heartOutline } from 'ionicons/icons';
 
 import { AlertController } from '@ionic/angular/standalone';
+import { PhotoDbService } from '../services/photo-db.service';
+import { IPhotoItem } from '../types/IPhotoItem';
+import { Filesystem, Directory } from '@capacitor/filesystem';
+import { Capacitor } from '@capacitor/core';
 
 @Component({
   selector: 'app-home',
@@ -46,53 +49,81 @@ import { AlertController } from '@ionic/angular/standalone';
     IonButton
   ],
 })
-export class HomePage {
-  photos: PhotoType[] = [];
+export class HomePage implements OnInit{
+  photos: IPhotoItem[] = [];
 
   constructor(
-    private storage: Storage,
-    private alertController: AlertController,
+    private _storage: Storage,
+    private _alertController: AlertController,
+    private _photoDbService: PhotoDbService
   ) {
     addIcons({
-      add, trash
+      add, trash, heart, heartOutline
     });
   }
 
+
   async ngOnInit() {
-    await this.storage.create();
-    const storedPhotos = await this.storage.get('photos');
-    if (storedPhotos) {
-      this.photos = storedPhotos;
-    }
+    await this._photoDbService.init();
+    await this.loadPhotos();
   }
 
-  async saveToStorage(photo: PhotoType) {
-    this.photos.push(photo);
-    await this.storage.set('photos', this.photos);
+  async saveToStorage(photo: IPhotoItem) {
+    await this._photoDbService.savePhoto(photo);
+    await this.loadPhotos();
   }
 
-  async removePhoto(index: number) {
-    this.photos.splice(index, 1);
-    await this.storage.set('photos', this.photos);
+  async removePhoto(id: number) {
+    await this._photoDbService.deletePhoto(id);
+    await this.loadPhotos();
+  }
+
+  async toggleFavorite(id: number) {
+    await this._photoDbService.toggleFavorite(id);
+    await this.loadPhotos();
   }
 
   async takePicture() {
     const image = await Camera.takePhoto({
       quality: 90,
       editable: 'no',
-      encodingType: EncodingType.PNG,
+      encodingType: EncodingType.JPEG,
     });
 
     if (!image || !image.webPath) {
-      console.error('No se pudo tomar la foto o no se obtuvo la ruta web.');
+      console.error('No se pudo tomar la foto o no se obtuvo la ruta.');
       return;
     }
 
-    await this.alertInfo('data:image/png;base64, ' + image.thumbnail);
+    const response = await fetch(image.webPath);
+    const blob = await response.blob();
+
+    const fileName = 'photo_' + new Date().getTime() + '.jpeg';
+
+    const reader = new FileReader();
+
+    reader.onloadend = async () => {
+      const base64Data = reader.result as string;
+
+      const file = await Filesystem.writeFile({
+        path: fileName,
+        data: base64Data,
+        directory: Directory.Data
+      });
+
+      const displayPath = Capacitor.convertFileSrc(file.uri);
+
+      await this.alertInfo(displayPath);
+    };
+    reader.readAsDataURL(blob);
   }
 
-  async alertInfo(photo: string) {
-    const alert = await this.alertController.create({
+  async loadPhotos() {
+    this.photos = await this._photoDbService.getPhotos();
+  }
+
+  async alertInfo(photoUri: string) {
+    const alert = await this._alertController.create({
       header: 'Nueva foto',
       message: 'Coloque la información de la foto en el campo de texto',
       inputs: [
@@ -116,11 +147,12 @@ export class HomePage {
         {
           text: 'Guardar',
           handler: (data) => {
-            const newPhoto: PhotoType = {
-              image: photo,
-              date: new Date().toDateString(),
-              caption: data.caption || 'Sin descripción',
+            const newPhoto: IPhotoItem = {
               title: data.title || 'Sin título',
+              caption: data.caption || 'Sin descripción',
+              imagePath: photoUri,
+              photoDate: new Date().toDateString(),
+              isFavorite: false,
             };
             this.saveToStorage(newPhoto);
           },
